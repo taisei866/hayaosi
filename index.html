@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>早押しボタン</title>
+<style>
+:root{--bg:#14161c;--card:#1f232c;--line:#2e3340;--tx:#f2f3f5;--mu:#9aa1ad;--red:#e5383b;--grn:#2bb673;--ylw:#f5b700}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{margin:0;background:var(--bg);color:var(--tx);font-family:system-ui,-apple-system,"Hiragino Sans","Noto Sans JP",sans-serif;min-height:100vh;user-select:none}
+.wrap{max-width:720px;margin:0 auto;padding:16px}
+h1{font-size:20px;margin:4px 0 16px;letter-spacing:.05em}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:14px}
+input{width:100%;font-size:18px;padding:12px;border-radius:10px;border:1px solid var(--line);background:#0f1116;color:var(--tx)}
+button{font:inherit;cursor:pointer;border:0;border-radius:10px;padding:12px 16px;font-weight:700;color:#fff;background:#3a4150}
+button:disabled{opacity:.4;cursor:default}
+.row{display:flex;gap:10px;flex-wrap:wrap}.row>button{flex:1}
+.pri{background:var(--red)}.ok{background:var(--grn)}.ng{background:#b5562a}
+.mu{color:var(--mu);font-size:13px}
+.hide{display:none!important}
+#buzz{display:block;margin:24px auto;width:min(78vw,340px);aspect-ratio:1;border-radius:50%;font-size:44px;font-weight:900;background:radial-gradient(circle at 35% 30%,#ff6b6e,var(--red) 60%,#9e1d20);box-shadow:0 12px 0 #7a1215,0 18px 30px #0008;transition:transform .05s,box-shadow .05s}
+#buzz:active:not(:disabled){transform:translateY(10px);box-shadow:0 2px 0 #7a1215,0 6px 12px #0008}
+#buzz:disabled{background:#444a57;box-shadow:0 12px 0 #2a2e37;opacity:1;color:#aab}
+#pmsg{text-align:center;font-size:26px;font-weight:800;min-height:1.4em}
+#pmsg.win{color:var(--grn);font-size:40px}
+.st{display:inline-block;padding:4px 10px;border-radius:99px;font-size:13px;font-weight:700;background:#3a4150}
+.st.open{background:var(--red)}.st.idle{background:#3a4150}
+ol{margin:0;padding:0;list-style:none}
+ol li{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;background:#0f1116;margin-bottom:6px;font-size:20px;font-weight:700}
+ol li .n{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;background:#3a4150;font-size:16px;flex:none}
+ol li.cur{outline:3px solid var(--grn)}ol li.cur .n{background:var(--grn)}
+ol li.out{opacity:.4;text-decoration:line-through}
+#big{font-size:40px;font-weight:900;text-align:center;min-height:56px;color:var(--ylw)}
+table{width:100%;border-collapse:collapse}td{padding:6px 4px;border-bottom:1px solid var(--line);font-size:16px}
+td.s{text-align:right;font-weight:800;width:60px}td.b{width:96px;text-align:right}
+td.b button{padding:4px 10px;margin-left:4px}
+.chips span{display:inline-block;margin:3px;padding:4px 10px;border-radius:99px;background:#0f1116;font-size:14px}
+.warn{color:var(--ylw);font-size:13px}
+</style></head>
+<body>
+<div class="wrap">
+  <h1>⚡ 早押しボタン</h1>
+
+  <section id="join" class="card">
+    <input id="nm" maxlength="16" placeholder="名前（例：もり）">
+    <input id="code" inputmode="numeric" maxlength="4" placeholder="部屋番号（4桁）" style="margin-top:10px">
+    <div class="row" style="margin-top:12px">
+      <button class="pri" id="asP">プレイヤーで参加</button>
+    </div>
+    <hr style="border:0;border-top:1px solid var(--line);margin:16px 0">
+    <div class="row"><button id="asH">司会として部屋を作る</button></div>
+    <p id="conn" class="mu" style="margin-bottom:0"></p>
+  </section>
+
+  <section id="player" class="hide">
+    <div class="mu" id="pname"></div>
+    <button id="buzz" disabled>待機中</button>
+    <div id="pmsg"></div>
+    <div class="card" style="margin-top:20px"><div class="mu">スコア</div><table id="pscore"></table></div>
+  </section>
+
+  <section id="host" class="hide">
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <span>部屋番号 <b id="hcode" style="font-size:28px;color:var(--ylw)"></b></span><span id="hst" class="st idle">待機中</span>
+      </div>
+      <div class="mu" id="hurl" style="word-break:break-all;margin-top:4px"></div>
+      <div style="margin-top:8px">第 <b id="qno">0</b> 問</div>
+      <div id="big" style="margin:12px 0"></div>
+      <div class="row"><button class="pri" id="start">▶ 出題（受付開始）</button></div>
+      <div class="row" style="margin-top:10px">
+        <button class="ok" id="right" disabled>⭕ 正解 +1</button>
+        <button class="ng" id="wrong" disabled>❌ 不正解（次の人へ）</button>
+      </div>
+      <div class="row" style="margin-top:10px"><button id="stop" disabled>受付終了</button></div>
+    </div>
+    <div class="card"><div class="mu" style="margin-bottom:8px">押した順</div><ol id="order"></ol></div>
+    <div class="card"><div class="mu">スコア</div><table id="hscore"></table>
+      <div class="row" style="margin-top:10px"><button id="reset">スコアをリセット</button></div></div>
+    <div class="card"><div class="mu">参加中のプレイヤー（<span id="pc">0</span>人）</div><div class="chips" id="plist"></div></div>
+  </section>
+</div>
+
+<script type="module">
+// ===== ここを自分のFirebase設定に書き換える =====
+const firebaseConfig = {
+  apiKey: "AIzaSyBaT3HPI5pUFiwX9ARcJgXOSgRX0jVySyk",
+  authDomain: "hayaoshi-4a3df.firebaseapp.com",
+  databaseURL: "https://hayaoshi-4a3df-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "hayaoshi-4a3df",
+  storageBucket: "hayaoshi-4a3df.firebasestorage.app",
+  messagingSenderId: "131340992531",
+  appId: "1:131340992531:web:e1f26e91f9bb692ee93fe6"
+};
+// ================================================
+
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getDatabase, ref, set, update, onValue, serverTimestamp, increment, onDisconnect, get, remove }
+  from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+
+const $=id=>document.getElementById(id);
+const clip=s=>String(s??'').slice(0,16);
+const db=getDatabase(initializeApp(firebaseConfig));
+
+const ls={get:k=>{try{return localStorage.getItem(k)}catch(e){return null}},set:(k,v)=>{try{localStorage.setItem(k,v)}catch(e){}}};
+let pid=ls.get('hy_pid'); if(!pid){pid=Math.random().toString(36).slice(2,10);ls.set('hy_pid',pid)}
+$('nm').value=ls.get('hy_name')||'';
+const qp=new URLSearchParams(location.search).get('r'); if(qp)$('code').value=qp;
+
+// ---- 音 ----
+let ac=null;
+function beep(f=880,d=.18){try{ac=ac||new (window.AudioContext||window.webkitAudioContext)();const o=ac.createOscillator(),g=ac.createGain();o.type='square';o.frequency.value=f;g.gain.setValueAtTime(.2,ac.currentTime);g.gain.exponentialRampToValueAtTime(.001,ac.currentTime+d);o.connect(g).connect(ac.destination);o.start();o.stop(ac.currentTime+d)}catch(e){}}
+const fanfare=()=>{beep(988,.12);setTimeout(()=>beep(1319,.3),120)};
+
+// ---- 共有状態 ----
+let role=null, code='', myName='';
+let S={q:0,round:0,status:'idle'}, buzz=[], out={}, scores={}, players={};
+let unsubRound=[];
+const R=p=>ref(db,`rooms/${code}/${p}`);
+const cur=()=>buzz.find(b=>!out[b.id])||null;
+
+function scoreTable(el,editable){
+  el.innerHTML='';
+  const ent=Object.entries(scores).sort((a,b)=>b[1]-a[1]);
+  if(!ent.length){el.innerHTML='<tr><td class="mu">まだありません</td></tr>';return}
+  for(const [n,s] of ent){
+    const tr=document.createElement('tr');
+    const a=document.createElement('td');a.textContent=n;
+    const b=document.createElement('td');b.className='s';b.textContent=s;tr.append(a,b);
+    if(editable){const c=document.createElement('td');c.className='b';
+      for(const d of [-1,1]){const bt=document.createElement('button');bt.textContent=d>0?'+':'−';bt.onclick=()=>update(R('scores'),{[n]:increment(d)});c.append(bt)}
+      tr.append(c)}
+    el.append(tr);
+  }
+}
+
+function render(){ role==='host'?renderHost():renderPlayer() }
+
+function renderHost(){
+  $('qno').textContent=S.q||0;
+  $('hst').textContent=S.status==='open'?'受付中':'待機中';$('hst').className='st '+S.status;
+  const c=cur();
+  $('big').textContent=c?'🔔 '+c.name:(S.status==='open'?'押されるのを待っています…':'');
+  $('right').disabled=$('wrong').disabled=!c;
+  $('stop').disabled=S.status!=='open';
+  const ol=$('order');ol.innerHTML='';
+  buzz.forEach((b,i)=>{const li=document.createElement('li');if(b===c)li.className='cur';else if(out[b.id])li.className='out';
+    const n=document.createElement('span');n.className='n';n.textContent=i+1;const t=document.createElement('span');t.textContent=b.name;li.append(n,t);ol.append(li)});
+  if(!buzz.length)ol.innerHTML='<li class="mu" style="font-size:14px;font-weight:400">まだ誰も押していません</li>';
+  scoreTable($('hscore'),true);
+  const ps=Object.values(players);$('pc').textContent=ps.length;
+  const pl=$('plist');pl.innerHTML='';ps.forEach(p=>{const s=document.createElement('span');s.textContent=clip(p.name);pl.append(s)});
+}
+
+let pressed=0;
+function renderPlayer(){
+  const b=$('buzz'),m=$('pmsg');m.className='';
+  scoreTable($('pscore'),false);
+  if(S.status!=='open'){b.disabled=true;b.textContent='待機中';m.textContent=S.q?'次の問題を待っています':'司会の出題を待っています';return}
+  if(out[pid]){b.disabled=true;b.textContent='✕';m.textContent='誤答のため、この問題は回答できません';return}
+  const rank=buzz.findIndex(x=>x.id===pid);
+  if(rank>=0){b.disabled=true;b.textContent=(rank+1)+'番';
+    if(cur()?.id===pid){m.textContent='回答権！';m.className='win';try{navigator.vibrate&&navigator.vibrate(200)}catch(e){}}
+    else m.textContent=(rank+1)+'番目に押しました';return}
+  if(pressed===S.round){b.disabled=true;b.textContent='…';m.textContent='送信中';return}
+  b.disabled=false;b.textContent='押す！';m.textContent='';
+}
+
+function watchRound(round){
+  unsubRound.forEach(f=>f());unsubRound=[];buzz=[];out={};
+  if(!round)return;
+  let prevLen=0;
+  unsubRound.push(onValue(R(`buzz/${round}`),snap=>{
+    const v=snap.val()||{};
+    buzz=Object.entries(v).map(([id,x])=>({id,name:clip(x.name),t:x.t||0})).sort((a,b)=>a.t-b.t||(a.id<b.id?-1:1));
+    if(role==='host'&&buzz.length>prevLen){buzz.length&&prevLen===0?fanfare():beep(600,.08)}
+    prevLen=buzz.length;render();
+  }));
+  unsubRound.push(onValue(R(`out/${round}`),snap=>{out=snap.val()||{};render()}));
+}
+
+function subscribe(){
+  let lastRound=null;
+  onValue(R('state'),snap=>{S=snap.val()||{q:0,round:0,status:'idle'};if(S.round!==lastRound){lastRound=S.round;watchRound(S.round)}render()});
+  onValue(R('scores'),snap=>{scores=snap.val()||{};render()});
+  onValue(ref(db,'.info/connected'),snap=>{$('conn').textContent=snap.val()?'':'接続中…'});
+  if(role==='host')onValue(R('players'),snap=>{players=snap.val()||{};render()});
+}
+
+// ---- 操作 ----
+function press(){
+  if(role!=='player'||S.status!=='open'||$('buzz').disabled)return;
+  pressed=S.round;beep(880,.1);
+  set(R(`buzz/${S.round}/${pid}`),{name:myName,t:serverTimestamp()});
+  renderPlayer();
+}
+$('buzz').addEventListener('pointerdown',e=>{e.preventDefault();press()});
+document.addEventListener('keydown',e=>{if(role==='player'&&(e.code==='Space'||e.code==='Enter')){e.preventDefault();press()}});
+
+$('start').onclick=()=>{beep(440,.05);set(R('state'),{q:(S.q||0)+1,round:Date.now(),status:'open'})};
+$('right').onclick=()=>{const c=cur();if(!c)return;update(R('scores'),{[c.name]:increment(1)});update(R('state'),{status:'idle'})};
+$('wrong').onclick=()=>{const c=cur();if(!c)return;beep(200,.3);set(R(`out/${S.round}/${c.id}`),true)};
+$('stop').onclick=()=>update(R('state'),{status:'idle'});
+$('reset').onclick=()=>{if($('reset').dataset.c){remove(R('scores'));delete $('reset').dataset.c;$('reset').textContent='スコアをリセット'}else{$('reset').dataset.c=1;$('reset').textContent='もう一度押すとリセット'}};
+
+function needName(){myName=clip($('nm').value.trim());if(!myName){$('nm').focus();return false}ls.set('hy_name',myName);return true}
+
+$('asP').onclick=async()=>{
+  if(!needName())return;
+  code=$('code').value.trim();
+  if(!/^\d{4}$/.test(code)){$('conn').textContent='部屋番号（4桁）を入力してください';return}
+  const ex=await get(R('state'));
+  if(!ex.exists()){$('conn').textContent='その部屋は見つかりません';return}
+  role='player';
+  const me=R(`players/${pid}`);set(me,{name:myName});onDisconnect(me).remove();
+  $('join').classList.add('hide');$('player').classList.remove('hide');
+  $('pname').textContent=`部屋 ${code} ／ ${myName}`;
+  subscribe();
+};
+
+$('asH').onclick=async()=>{
+  if(!needName())return;
+  for(let i=0;i<10;i++){
+    code=String(Math.floor(1000+Math.random()*9000));
+    const ex=await get(R('state'));
+    if(!ex.exists()||Date.now()-(ex.val().round||ex.val().created||0)>6*3600e3)break;
+  }
+  await set(ref(db,`rooms/${code}`),{state:{q:0,round:0,status:'idle',created:Date.now()}});
+  role='host';
+  $('join').classList.add('hide');$('host').classList.remove('hide');
+  $('hcode').textContent=code;
+  $('hurl').textContent=location.origin+location.pathname+'?r='+code;
+  subscribe();
+};
+</script>
+</body>
+</html>
